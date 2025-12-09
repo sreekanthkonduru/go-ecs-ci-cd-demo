@@ -5,8 +5,8 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws --version
-      - REPO_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/go-ecs-demo"
-      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REPO_URI
+      - REPO_URI="${481071950406}.dkr.ecr.${ap-south-2}.amazonaws.com/go-ecs-demo"
+      - aws ecr get-login-password --region ap-south-2 | docker login --username AWS --password-stdin $REPO_URI
 
   build:
     commands:
