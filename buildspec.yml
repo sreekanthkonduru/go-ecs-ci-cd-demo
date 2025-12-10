@@ -12,13 +12,13 @@ phases:
     commands:
       - echo Build started on `date`
       - docker build -t go-ecs-demo .
-      - docker tag go-ecs-demo:latest $REPO_URI:latest
+      - docker tag go-ecs-demo:latest $REPO_URI/go-ecs-demo:latest
 
   post_build:
     commands:
       - echo Build completed on `date`
-      - docker push $REPO_URI:latest
-      - printf '[{"name":"go-ecs-demo","imageUri":"%s"}]' $REPO_URI:latest > imagedefinitions.json
+      - docker push $REPO_URI/go-ecs-demo:latest
+      - printf '[{"name":"go-ecs-demo","imageUri":"%s"}]' $REPO_URI/go-ecs-demo:latest > imagedefinitions.json
 
 artifacts:
   files:
