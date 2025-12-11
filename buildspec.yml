@@ -1,24 +1,36 @@
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      docker: 20
+    commands:
+      - echo Installing & verifying AWS CLI...
+      - aws --version
+
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
-      - aws --version
-      - REPO_URI="481071950406.dkr.ecr.ap-south-2.amazonaws.com"
-      - aws ecr get-login-password --region ap-south-2 | docker login --username AWS --password-stdin $REPO_URI
+      - echo Retrieving Docker Hub password from SSM Parameter Store...
+      # set your parameter name here (change if needed)
+      - DOCKERHUB_PASSWORD_PARAM="/myapp/docker-credentials/password"
+      # Fetch the parameter (with decryption) and store it in an env var
+      - export DOCKERHUB_PASSWORD="$(aws ssm get-parameter --name "$DOCKERHUB_PASSWORD_PARAM" --with-decryption --query Parameter.Value --output text)"
+      - echo Logging in to Docker Hub...
+      # Ensure DOCKERHUB_USERNAME is set as an environment variable in CodeBuild or set it here:
+      - export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:sreekanthkonduru}"
+      - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
 
   build:
     commands:
       - echo Build started on `date`
       - docker build -t go-ecs-demo .
-      - docker tag go-ecs-demo:latest $REPO_URI/go-ecs-demo:latest
+      - docker tag go-ecs-demo:latest $DOCKERHUB_USERNAME/go-ecs-demo:latest
 
   post_build:
     commands:
       - echo Build completed on `date`
-      - docker push $REPO_URI/go-ecs-demo:latest
-      - printf '[{"name":"go-ecs-demo","imageUri":"%s"}]' $REPO_URI/go-ecs-demo:latest > imagedefinitions.json
+      - docker push $DOCKERHUB_USERNAME/go-ecs-demo:latest
+      - printf '[{"name":"go-ecs-demo","imageUri":"%s"}]' $DOCKERHUB_USERNAME/go-ecs-demo:latest > imagedefinitions.json
 
 artifacts:
   files:
