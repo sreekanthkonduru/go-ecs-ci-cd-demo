@@ -15,25 +15,25 @@ phases:
       - DOCKERHUB_PASSWORD_PARAM="/myapp/docker-credentials/password"
       - export DOCKERHUB_PASSWORD="$(aws ssm get-parameter --name "$DOCKERHUB_PASSWORD_PARAM" --with-decryption --query Parameter.Value --output text)"
       - echo "Setting Docker Hub username (from environment or default)..."
-      # Use DOCKERHUB_USERNAME from CodeBuild env; fallback to your username
       - export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-sreekanthkonduru}"
-      - echo "Logging in to Docker Hub (password passed via stdin)..."
+      - echo "Logging in to Docker Hub (password via stdin)..."
       - echo "$DOCKERHUB_PASSWORD" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
 
   build:
     commands:
       - echo "Build started on `date`"
-      # set image name and tag (use short commit hash when available)
       - export IMAGE_NAME="${DOCKERHUB_USERNAME}/go-ecs-demo"
       - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
+      # shorten commit hash if available (this is a single YAML string item)
       - |
-        # when CODEBUILD_RESOLVED_SOURCE_VERSION is a long hash, use first 7 chars
-        if [ "${IMAGE_TAG}" != "latest" ] && [ "${#IMAGE_TAG}" -ge 7 ]; then
+        if [ "$IMAGE_TAG" != "latest" ] && [ "${#IMAGE_TAG}" -ge 7 ]; then
           IMAGE_TAG="${IMAGE_TAG:0:7}"
         fi
       - echo "Building Docker image ${IMAGE_NAME}:${IMAGE_TAG} ..."
       - docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
-      - docker images --filter=reference="${IMAGE_NAME}:${IMAGE_TAG}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
+      # show image info; the format string is wrapped in single quotes to avoid YAML parsing issues
+      - docker images --filter "reference=${IMAGE_NAME}:${IMAGE_TAG}" --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}'
 
   post_build:
     commands:
@@ -48,4 +48,3 @@ phases:
 artifacts:
   files:
     - imagedefinitions.json
-    
