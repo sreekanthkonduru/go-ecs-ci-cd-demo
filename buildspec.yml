@@ -5,45 +5,37 @@ phases:
     runtime-versions:
       docker: 20
     commands:
-      - echo "Installing & verifying AWS CLI and Docker..."
+      - echo Installing & verifying AWS CLI and Docker...
       - aws --version
       - docker --version
 
   pre_build:
     commands:
-      - echo "Retrieving Docker Hub password from SSM Parameter Store..."
+      - echo Retrieving Docker Hub password from SSM Parameter Store...
       - DOCKERHUB_PASSWORD_PARAM="/myapp/docker-credentials/password"
       - export DOCKERHUB_PASSWORD="$(aws ssm get-parameter --name "$DOCKERHUB_PASSWORD_PARAM" --with-decryption --query Parameter.Value --output text)"
-      - echo "Setting Docker Hub username (from environment or default)..."
+      - echo Setting Docker Hub username (from env or default)...
       - export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-sreekanthkonduru}"
-      - echo "Logging in to Docker Hub (password via stdin)..."
+      - echo Logging in to Docker Hub (password via stdin)...
       - echo "$DOCKERHUB_PASSWORD" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
 
   build:
     commands:
-      - echo "Build started on `date`"
+      - echo Build started on $(date)
       - export IMAGE_NAME="${DOCKERHUB_USERNAME}/go-ecs-demo"
-      - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}"
-      # shorten commit hash if available (this is a single YAML string item)
-      - |
-        if [ "$IMAGE_TAG" != "latest" ] && [ "${#IMAGE_TAG}" -ge 7 ]; then
-          IMAGE_TAG="${IMAGE_TAG:0:7}"
-        fi
-      - echo "Building Docker image ${IMAGE_NAME}:${IMAGE_TAG} ..."
+      - export IMAGE_TAG="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c1-7)"
+      - if [ -z "$IMAGE_TAG" ]; then IMAGE_TAG=latest; fi
+      - echo Building Docker image ${IMAGE_NAME}:${IMAGE_TAG} ...
       - docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
-
-      # show image info; the format string is wrapped in single quotes to avoid YAML parsing issues
-      - docker images --filter "reference=${IMAGE_NAME}:${IMAGE_TAG}" --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}'
 
   post_build:
     commands:
-      - echo "Pushing image to Docker Hub: ${IMAGE_NAME}:${IMAGE_TAG}"
+      - echo Pushing image to Docker Hub: ${IMAGE_NAME}:${IMAGE_TAG}
       - docker push "${IMAGE_NAME}:${IMAGE_TAG}"
-      - echo "Also tagging as latest and pushing (optional)..."
       - docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${IMAGE_NAME}:latest"
       - docker push "${IMAGE_NAME}:latest"
       - printf '[{"name":"go-ecs-demo","imageUri":"%s"}]' "${IMAGE_NAME}:${IMAGE_TAG}" > imagedefinitions.json
-      - echo "Build completed on `date`"
+      - echo Build completed on $(date)
 
 artifacts:
   files:
